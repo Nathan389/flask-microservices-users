@@ -1,7 +1,7 @@
 # project/api/models.py
 
 
-import datetime 
+import datetime
 
 import jwt
 from flask import current_app
@@ -15,20 +15,20 @@ class User(db.Model):
     username = db.Column(db.String(128), unique=True, nullable=False)
     email = db.Column(db.String(128), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    active = db.Column(db.Boolean(), default=True, nullable=False)
+    active = db.Column(db.Boolean, default=True, nullable=False)
     admin = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False)
-    
+
     def __init__(
-            self, username, email, password, 
-            created_at=datetime.datetime.utcnow()):
+            self, username, email, password,
+            created_at=datetime.datetime.now()):
         self.username = username
         self.email = email
         self.password = bcrypt.generate_password_hash(
-          password, current_app.config.get('BCRYPT_LOG_ROUNDS')
+            password, current_app.config.get('BCRYPT_LOG_ROUNDS')
         ).decode()
         self.created_at = created_at
-        
+
     def encode_auth_token(self, user_id):
         """Generates the auth token"""
         try:
@@ -47,7 +47,7 @@ class User(db.Model):
             )
         except Exception as e:
             return e
-    
+
     @staticmethod
     def decode_auth_token(auth_token):
         """Decodes the auth token - :param auth_token: - :return: integer|string"""

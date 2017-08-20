@@ -45,22 +45,23 @@ def register_user():
                 'message': 'Successfully registered.',
                 'auth_token': auth_token.decode()
             }
-            return jsonify(response_object), 201
+            return make_response(jsonify(response_object)), 201
         else:
             response_object = {
                 'status': 'error',
                 'message': 'Sorry. That user already exists.'
             }
-            return jsonify(response_object), 400
+            return make_response(jsonify(response_object)), 400
     # handler errors
     except (exc.IntegrityError, ValueError) as e:
-        db.session.rollback()
+        db.session().rollback() # does session need parentheses?
         response_object = {
             'status': 'error',
             'message': 'Invalid payload.'
         }
-        return jsonify(response_object), 400
-    
+        return make_response(jsonify(response_object)), 400
+
+
 @auth_blueprint.route('/auth/login', methods=['POST'])
 def login_user():
     # get post data
@@ -70,7 +71,7 @@ def login_user():
             'status': 'error',
             'message': 'Invalid payload.'
         }
-        return jsonify(response_object), 400
+        return make_response(jsonify(response_object)), 400
     email = post_data.get('email')
     password = post_data.get('password')
     try:
@@ -84,30 +85,32 @@ def login_user():
                     'message': 'Successfully logged in.',
                     'auth_token': auth_token.decode()
                 }
-                return jsonify(response_object), 200
+                return make_response(jsonify(response_object)), 200
         else:
             response_object = {
                 'status': 'error',
-                'message': 'User does nto exist.'
+                'message': 'User does not exist.'
             }
-            return jsonify(response_object), 404
+            return make_response(jsonify(response_object)), 404
     except Exception as e:
         print(e)
         response_object = {
             'status': 'error',
             'message': 'Try again.'
         }
-        return jsonify(response_object), 500
-    
+        return make_response(jsonify(response_object)), 500
+
+
 @auth_blueprint.route('/auth/logout', methods=['GET'])
 @authenticate
 def logout_user(resp):
     response_object = {
-      'status': 'success',
-      'message': 'Successfully logged out.'
+        'status': 'success',
+        'message': 'Successfully logged out.'
     }
-    return jsonify(response_object), 200
-    
+    return make_response(jsonify(response_object)), 200
+
+
 @auth_blueprint.route('/auth/status', methods=['GET'])
 @authenticate
 def get_user_status(resp):
@@ -122,4 +125,4 @@ def get_user_status(resp):
             'created_at': user.created_at
         }
     }
-    return jsonify(response_object), 200
+    return make_response(jsonify(response_object)), 200

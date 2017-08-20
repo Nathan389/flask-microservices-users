@@ -1,7 +1,8 @@
 # project/tests/test_config.py
 
-import unittest
+
 import os
+import unittest
 
 from flask import current_app
 from flask_testing import TestCase
@@ -9,6 +10,7 @@ from flask_testing import TestCase
 from project import create_app
 
 app = create_app()
+
 
 class TestDevelopmentConfig(TestCase):
     def create_app(self):
@@ -29,9 +31,7 @@ class TestDevelopmentConfig(TestCase):
         self.assertTrue(app.config['BCRYPT_LOG_ROUNDS'] == 4)
         self.assertTrue(app.config['TOKEN_EXPIRATION_DAYS'] == 30)
         self.assertTrue(app.config['TOKEN_EXPIRATION_SECONDS'] == 0)
-    
 
-        
 class TestTestingConfig(TestCase):
     def create_app(self):
         app.config.from_object('project.config.TestingConfig')
@@ -53,7 +53,6 @@ class TestTestingConfig(TestCase):
         self.assertTrue(app.config['TOKEN_EXPIRATION_DAYS'] == 0)
         self.assertTrue(app.config['TOKEN_EXPIRATION_SECONDS'] == 3)
 
-
 class TestProductionConfig(TestCase):
     def create_app(self):
         app.config.from_object('project.config.ProductionConfig')
@@ -69,7 +68,7 @@ class TestProductionConfig(TestCase):
         self.assertTrue(app.config['BCRYPT_LOG_ROUNDS'] == 13)
         self.assertTrue(app.config['TOKEN_EXPIRATION_DAYS'] == 30)
         self.assertTrue(app.config['TOKEN_EXPIRATION_SECONDS'] == 0)
-                        
-        
+
+
 if __name__ == '__main__':
     unittest.main()

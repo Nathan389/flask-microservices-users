@@ -9,7 +9,7 @@ from project.api.models import User
 from project.tests.base import BaseTestCase
 from project.tests.utils import add_user
 
-#test_not_registered_user_login ~line 143
+
 class TestAuthBlueprint(BaseTestCase):
 
     def test_user_registration(self):
@@ -28,8 +28,7 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertTrue(data['message'] == 'Successfully registered.')
             self.assertTrue(data['auth_token'])
             self.assertTrue(response.content_type == 'application/json')
-            self.assertEqual(response.status_code, 201)
-            
+            self.assertEqual(response.status_code, 201)        
     # Others to test for: 1) email exists, 2) username exists, 3) invalid payload (empty, no username, no email, no password)
     def test_user_registration_duplicate_email(self):
         add_user('test', 'test@test.com', 'test')
@@ -48,7 +47,7 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertIn(
                 'Sorry. That user already exists.', data['message'])
             self.assertIn('error', data['status'])
-  
+
     def test_user_registration_duplicate_username(self):
         add_user('test', 'test@test.com', 'test')
         with self.client:
@@ -66,7 +65,7 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertIn(
                 'Sorry. That user already exists.', data['message'])
             self.assertIn('error', data['status'])
-            
+
     def test_user_registration_invalid_json(self):
         with self.client:
             response = self.client.post(
@@ -78,38 +77,45 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertEqual(response.status_code, 400)
             self.assertIn('Invalid payload.', data['message'])
             self.assertIn('error', data['status'])
-            
+
     def test_user_registration_invalid_json_keys_no_username(self):
         with self.client:
             response = self.client.post(
                 '/auth/register',
-                data=json.dumps(dict(
-                    username='justatest', 
-                    password='test'
-                )),
+                data=json.dumps(dict(email='test@test.com', password='test')),
                 content_type='application/json',
             )
             data = json.loads(response.data.decode())
             self.assertEqual(response.status_code, 400)
             self.assertIn('Invalid payload.', data['message'])
             self.assertIn('error', data['status'])
-            
+
+    def test_user_registration_invalid_json_keys_no_email(self):
+        with self.client:
+            response = self.client.post(
+                '/auth/register',
+                data=json.dumps(dict(
+                    username='justatest', password='test')),
+                content_type='application/json',
+            )
+            data = json.loads(response.data.decode())
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Invalid payload.', data['message'])
+            self.assertIn('error', data['status'])
+
     def test_user_registration_invalid_json_keys_no_password(self):
         with self.client:
             response = self.client.post(
                 '/auth/register',
                 data=json.dumps(dict(
-                    username='justatest',
-                    email='test@test.com'
-                )),
+                    username='justatest', email='test@test.com')),
                 content_type='application/json',
             )
             data = json.loads(response.data.decode())
             self.assertEqual(response.status_code, 400)
             self.assertIn('Invalid payload.', data['message'])
             self.assertIn('error', data['status'])
-            
-    # Login tests
+
     def test_registered_user_login(self):
         with self.client:
             add_user('test', 'test@test.com', 'test')
@@ -127,7 +133,7 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertTrue(data['auth_token'])
             self.assertTrue(response.content_type == 'application/json')
             self.assertEqual(response.status_code, 200)
-            
+
     def test_not_registered_user_login(self):
         with self.client:
             response = self.client.post(
@@ -141,11 +147,9 @@ class TestAuthBlueprint(BaseTestCase):
             data = json.loads(response.data.decode())
             self.assertTrue(data['status'] == 'error')
             self.assertTrue(data['message'] == 'User does not exist.')
-            print(data['message'])
             self.assertTrue(response.content_type == 'application/json')
             self.assertEqual(response.status_code, 404)
-            
-    # logout
+
     def test_valid_logout(self):
         add_user('test', 'test@test.com', 'test')
         with self.client:
@@ -171,7 +175,7 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertTrue(data['status'] == 'success')
             self.assertTrue(data['message'] == 'Successfully logged out.')
             self.assertEqual(response.status_code, 200)
-            
+
     def test_invalid_logout_expired_token(self):
         add_user('test', 'test@test.com', 'test')
         with self.client:
@@ -195,9 +199,10 @@ class TestAuthBlueprint(BaseTestCase):
             )
             data = json.loads(response.data.decode())
             self.assertTrue(data['status'] == 'error')
-            self.assertTrue(data['message'] == 'Signature expired. Please log in again.')
+            self.assertTrue(
+                data['message'] == 'Signature expired. Please log in again.')
             self.assertEqual(response.status_code, 401)
-            
+
     def test_invalid_logout(self):
         with self.client:
             response = self.client.get(
@@ -205,10 +210,39 @@ class TestAuthBlueprint(BaseTestCase):
                 headers=dict(Authorization='Bearer invalid'))
             data = json.loads(response.data.decode())
             self.assertTrue(data['status'] == 'error')
-            self.assertTrue(data['message'] == 'Invalid token. Please log in again.')
+            self.assertTrue(
+                data['message'] == 'Invalid token. Please log in again.')
             self.assertEqual(response.status_code, 401)
-            
-    # status
+
+    def test_invalid_logout_inactive(self):
+        add_user('test', 'test@test.com', 'test')
+        # update user
+        user = User.query.filter_by(email='test@test.com').first()
+        user.active = False
+        db.session.commit()
+        with self.client:
+            resp_login = self.client.post(
+                '/auth/login',
+                data=json.dumps(dict(
+                    email='test@test.com',
+                    password='test'
+                )),
+                content_type='application/json'
+            )
+            response = self.client.get(
+                '/auth/logout',
+                headers=dict(
+                    Authorization='Bearer ' + json.loads(
+                        resp_login.data.decode()
+                    )['auth_token']
+                )
+            )
+            data = json.loads(response.data.decode())
+            self.assertTrue(data['status'] == 'error')
+            self.assertTrue(
+                data['message'] == 'Something went wrong. Please contact us.')
+            self.assertEqual(response.status_code, 401)
+
     def test_user_status(self):
         add_user('test', 'test@test.com', 'test')
         with self.client:
@@ -236,7 +270,7 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertTrue(data['data']['active'] is True)
             self.assertTrue(data['data']['created_at'])
             self.assertEqual(response.status_code, 200)
-            
+
     def test_invalid_status(self):
         with self.client:
             response = self.client.get(
@@ -244,129 +278,35 @@ class TestAuthBlueprint(BaseTestCase):
                 headers=dict(Authorization='Bearer invalid'))
             data = json.loads(response.data.decode())
             self.assertTrue(data['status'] == 'error')
-            self.assertTrue(data['message'] == 'Invalid token. Please log in again.')
+            self.assertTrue(
+                data['message'] == 'Invalid token. Please log in again.')
             self.assertEqual(response.status_code, 401)
-            
-    def test_invalid_logout_inactive(self):
-      add_user('test', 'test@test.com', 'test')
-      # update user
-      user = User.query.filter_by(email='test@test.com').first()
-      user.active = False
-      db.session.commit()
-      with self.client:
-        resp_login = self.client.post(
-          '/auth/login',
-          data=json.dumps(dict(
-            email='test@test.com',
-            password='test'
-          )),
-          content_type='application/json'
-        )
-        response = self.client.get(
-          '/auth/logout',
-          headers=dict(
-            Authorization='Bearer ' + json.loads(
-              resp_login.data.decode()
-            )['auth_token']
-          )
-        )
-        data = json.loads(response.data.decode())
-        self.assertTrue(data['status'] == 'error')
-        self.assertTrue(
-          data['message'] == 'Something went wrong. Please contact us.')
-        self.assertEqual(response.status_code, 401)
-        
+
     def test_invalid_status_inactive(self):
-      add_user('test', 'test@test.com', 'test')
-      # update user
-      user = User.query.filter_by(email='test@test.com').first()
-      user.active = False
-      db.session.commit()
-      with self.client:
-        resp_login = self.client.post(
-          '/auth/login',
-          data=json.dumps(dict(
-            email='test@test.com',
-            password='test'
-          )),
-          content_type='application/json'
-        )
-        response = self.client.get(
-          '/auth/status',
-          headers=dict(
-            Authorization='Bearer ' + json.loads(
-              resp_login.data.decode()
-            )['auth_token']
-          )
-        )
-        data = json.loads(response.data.decode())
-        self.assertTrue(data['status'] == 'error')
-        self.assertTrue(
-        data['message'] == 'Something went wrong. Please contact us.')
-        self.assertEqual(response.status_code, 401)
-      
-    def test_add_user_inactive(self):
-      add_user('test', 'test@test.com', 'test')
-      # update user
-      user = User.query.filter_by(email='test@test.com').first()
-      user.active = False 
-      db.session.commit()
-      with self.client:
-        resp_login = self.client.post(
-          '/auth/login',
-          data=json.dumps(dict(
-            email='test@test.com',
-            password='test'
-          )),
-          content_type='application/json'
-        )
-        response = self.client.post(
-          '/users',
-          data=json.dumps(dict(
-            username='michael',
-            emaill='michael@realpython.com',
-            password='test'
-          )),
-          content_type='application/json',
-          headers=dict(
-            Authorization='Bearer ' + json.loads(
-              resp_login.data.decode()
-            )['auth_token']
-          )
-        )
-        data = json.loads(response.data.decode())
-        self.assertTrue(data['status'] == 'error')
-        self.assertTrue(data['message'] == 'Something went wrong. Please contact us.')
-        self.assertEqual(response.status_code, 401)
-        
-      # ...template for test_users.py tests...
         add_user('test', 'test@test.com', 'test')
         # update user
         user = User.query.filter_by(email='test@test.com').first()
-        #user.admin = True
+        user.active = False
         db.session.commit()
-    
-        # user login
-        resp_login = self.client.post(
-          '/auth/login',
-          data=json.dumps(dict(
-            email='test@test.com',
-            password='test'
-          )),
-          content_type='application/json'
-        )
-        
-        self.client.post(
-          '/users',
-          data=json.dumps(dict(
-            username='michael',
-            email='michael@realpython.com',
-            password='test'
-          )),
-          content_type='application/json',
-          headers=dict(
-            Authorization='Bearer ' + json.loads(
-              resp_login.data.decode()
-            )['auth_token']
-          )
-        )
+        with self.client:
+            resp_login = self.client.post(
+                '/auth/login',
+                data=json.dumps(dict(
+                    email='test@test.com',
+                    password='test'
+                )),
+                content_type='application/json'
+            )
+            response = self.client.get(
+                '/auth/status',
+                headers=dict(
+                    Authorization='Bearer ' + json.loads(
+                        resp_login.data.decode()
+                    )['auth_token']
+                )
+            )
+            data = json.loads(response.data.decode())
+            self.assertTrue(data['status'] == 'error')
+            self.assertTrue(
+                data['message'] == 'Something went wrong. Please contact us.')
+            self.assertEqual(response.status_code, 401)
