@@ -28,8 +28,12 @@ class TestAuthBlueprint(BaseTestCase):
             self.assertTrue(data['message'] == 'Successfully registered.')
             self.assertTrue(data['auth_token'])
             self.assertTrue(response.content_type == 'application/json')
-            self.assertEqual(response.status_code, 201)        
-    # Others to test for: 1) email exists, 2) username exists, 3) invalid payload (empty, no username, no email, no password)
+            self.assertEqual(response.status_code, 201)
+    
+    # Others to test for: 
+	#  1) email exists
+	#  2) username exists, 
+	#  3) invalid payload (empty, no username, no email, no password)
     def test_user_registration_duplicate_email(self):
         add_user('test', 'test@test.com', 'test')
         with self.client:
